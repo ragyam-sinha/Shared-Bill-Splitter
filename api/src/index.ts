@@ -1,6 +1,10 @@
 import { Hono } from 'hono'
+import { cors } from 'hono/cors'
 
 const app = new Hono<{ Bindings: Env }>()
+
+// Enable CORS for all API endpoints
+app.use('/api/*', cors())
 
 // Global error handlers
 app.onError((err, c) => {
@@ -494,6 +498,97 @@ app.delete('/api/bills/:billId', async (c) => {
   ])
 
   return c.json({ success: true, message: 'Bill deleted successfully' }, 200)
+})
+
+// PATCH /api/homes/:homeId - Edit/rename a home
+app.patch('/api/homes/:homeId', async (c) => {
+  const homeId = c.req.param('homeId')
+
+  const home = await c.env.DB.prepare('SELECT id FROM homes WHERE id = ?')
+    .bind(homeId)
+    .first<{ id: string }>()
+
+  if (!home) {
+    return c.json({ error: 'Home not found' }, 404)
+  }
+
+  let body: unknown
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400)
+  }
+
+  if (
+    !body ||
+    typeof body !== 'object' ||
+    typeof (body as { name?: unknown }).name !== 'string' ||
+    (body as { name: string }).name.trim().length === 0
+  ) {
+    return c.json({ error: 'name is required and must be a non-empty string' }, 400)
+  }
+
+  const name = (body as { name: string }).name.trim()
+
+  await c.env.DB.prepare('UPDATE homes SET name = ? WHERE id = ?').bind(name, homeId).run()
+
+  return c.json({ id: homeId, name }, 200)
+})
+
+// DELETE /api/homes/:homeId/members/:memberId - Remove a member added by mistake
+app.delete('/api/homes/:homeId/members/:memberId', async (c) => {
+  const homeId = c.req.param('homeId')
+  const memberId = c.req.param('memberId')
+
+  const member = await c.env.DB.prepare('SELECT id, name FROM members WHERE id = ? AND home_id = ?')
+    .bind(memberId, homeId)
+    .first<{ id: string; name: string }>()
+
+  if (!member) {
+    return c.json({ error: 'Member not found' }, 404)
+  }
+
+  await c.env.DB.batch([
+    c.env.DB.prepare('DELETE FROM shares WHERE member_id = ?').bind(memberId),
+    c.env.DB.prepare('DELETE FROM members WHERE id = ? AND home_id = ?').bind(memberId, homeId),
+  ])
+
+  return c.json({ success: true, message: `Member ${member.name} removed successfully` }, 200)
+})
+
+// PATCH /api/bills/:billId - Edit a bill title
+app.patch('/api/bills/:billId', async (c) => {
+  const billId = c.req.param('billId')
+
+  const bill = await c.env.DB.prepare('SELECT id FROM bills WHERE id = ?')
+    .bind(billId)
+    .first<{ id: string }>()
+
+  if (!bill) {
+    return c.json({ error: 'Bill not found' }, 404)
+  }
+
+  let body: unknown
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400)
+  }
+
+  if (
+    !body ||
+    typeof body !== 'object' ||
+    typeof (body as { title?: unknown }).title !== 'string' ||
+    (body as { title: string }).title.trim().length === 0
+  ) {
+    return c.json({ error: 'title is required and must be a non-empty string' }, 400)
+  }
+
+  const title = (body as { title: string }).title.trim()
+
+  await c.env.DB.prepare('UPDATE bills SET title = ? WHERE id = ?').bind(title, billId).run()
+
+  return c.json({ id: billId, title }, 200)
 })
 
 export default app

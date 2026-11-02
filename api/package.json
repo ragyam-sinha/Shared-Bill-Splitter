@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler d1 migrations apply DB --local && wrangler dev",
+    "dev": "wrangler d1 migrations apply DB --local && wrangler dev --local",
     "deploy": "wrangler deploy",
     "cf-typegen": "wrangler types",
     "postinstall": "wrangler types",

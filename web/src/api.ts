@@ -10,6 +10,9 @@ export class ApiError extends Error {
   }
 }
 
+const API_BASE_URL =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, '') || ''
+
 async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 8000) {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
@@ -37,7 +40,9 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
     headers.set('Content-Type', 'application/json')
   }
 
-  const response = await fetchWithTimeout(url, {
+  const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`
+
+  const response = await fetchWithTimeout(fullUrl, {
     ...options,
     headers,
   })
@@ -90,6 +95,13 @@ export const api = {
     )
   },
 
+  editHome: async (homeId: string, name: string): Promise<Home> => {
+    return request<Home>(`/api/homes/${encodeURIComponent(homeId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
+    })
+  },
+
   resetHome: async (homeId: string): Promise<{ success: boolean; message: string }> => {
     return request<{ success: boolean; message: string }>(
       `/api/homes/${encodeURIComponent(homeId)}/reset`,
@@ -105,6 +117,18 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ name }),
     })
+  },
+
+  removeMember: async (
+    homeId: string,
+    memberId: string,
+  ): Promise<{ success: boolean; message: string }> => {
+    return request<{ success: boolean; message: string }>(
+      `/api/homes/${encodeURIComponent(homeId)}/members/${encodeURIComponent(memberId)}`,
+      {
+        method: 'DELETE',
+      },
+    )
   },
 
   // Balances
@@ -135,6 +159,13 @@ export const api = {
         method: 'DELETE',
       },
     )
+  },
+
+  editBill: async (billId: string, title: string): Promise<{ id: string; title: string }> => {
+    return request<{ id: string; title: string }>(`/api/bills/${encodeURIComponent(billId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ title }),
+    })
   },
 
   // Pay share
