@@ -81,6 +81,24 @@ export const api = {
     })
   },
 
+  deleteHome: async (homeId: string): Promise<{ success: boolean; message: string }> => {
+    return request<{ success: boolean; message: string }>(
+      `/api/homes/${encodeURIComponent(homeId)}`,
+      {
+        method: 'DELETE',
+      },
+    )
+  },
+
+  resetHome: async (homeId: string): Promise<{ success: boolean; message: string }> => {
+    return request<{ success: boolean; message: string }>(
+      `/api/homes/${encodeURIComponent(homeId)}/reset`,
+      {
+        method: 'POST',
+      },
+    )
+  },
+
   // Members
   addMember: async (homeId: string, name: string): Promise<Member> => {
     return request<Member>(`/api/homes/${encodeURIComponent(homeId)}/members`, {
@@ -108,6 +126,15 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ title, totalCents }),
     })
+  },
+
+  deleteBill: async (billId: string): Promise<{ success: boolean; message: string }> => {
+    return request<{ success: boolean; message: string }>(
+      `/api/bills/${encodeURIComponent(billId)}`,
+      {
+        method: 'DELETE',
+      },
+    )
   },
 
   // Pay share

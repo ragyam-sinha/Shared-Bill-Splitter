@@ -257,6 +257,75 @@ function BillSplitterApp() {
     }
   }
 
+  // Handle Deleting a Single Bill
+  const handleDeleteBill = async (billId: string, title: string) => {
+    if (
+      !window.confirm(
+        `Are you sure you want to delete bill "${title}"? This will remove all associated shares.`,
+      )
+    ) {
+      return
+    }
+    try {
+      await api.deleteBill(billId)
+      setBills((prev) => prev.filter((b) => b.id !== billId))
+      if (selectedHomeId) {
+        api.getBalances(selectedHomeId).then(setBalances).catch(console.error)
+      }
+      setSuccessToast(`Bill "${title}" deleted successfully!`)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to delete bill'
+      setActionError(`Error deleting bill: ${message}`)
+    }
+  }
+
+  // Handle Resetting All Bills for Current Home
+  const handleResetBills = async () => {
+    if (
+      !window.confirm(
+        `Are you sure you want to reset all bills for "${homeDetails?.name}"? All bills and shares will be permanently deleted, resetting member balances to $0.00.`,
+      )
+    ) {
+      return
+    }
+    try {
+      await api.resetHome(selectedHomeId)
+      setBills([])
+      if (selectedHomeId) {
+        api.getBalances(selectedHomeId).then(setBalances).catch(console.error)
+      }
+      setSuccessToast('All bills for this home have been reset!')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to reset bills'
+      setActionError(`Error resetting bills: ${message}`)
+    }
+  }
+
+  // Handle Deleting the Current Home
+  const handleDeleteHome = async () => {
+    if (
+      !window.confirm(
+        `Are you sure you want to delete home "${homeDetails?.name}"? All its members, bills, and shares will be permanently removed.`,
+      )
+    ) {
+      return
+    }
+    try {
+      await api.deleteHome(selectedHomeId)
+      const updatedHomes = homes.filter((h) => h.id !== selectedHomeId)
+      setHomes(updatedHomes)
+      if (updatedHomes.length > 0 && updatedHomes[0]) {
+        setSelectedHomeId(updatedHomes[0].id)
+      } else {
+        setSelectedHomeId('')
+      }
+      setSuccessToast('Home deleted successfully!')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to delete home'
+      setActionError(`Error deleting home: ${message}`)
+    }
+  }
+
   const previewMembersCount = homeDetails?.members?.length ?? 0
   const parsedPreviewCents = Math.round(Number.parseFloat(newBillAmount || '0') * 100)
   const isPreviewValid = !Number.isNaN(parsedPreviewCents) && parsedPreviewCents > 0
@@ -303,6 +372,16 @@ function BillSplitterApp() {
           >
             + New Home
           </button>
+          {selectedHomeId && (
+            <button
+              type="button"
+              className="btn btn-outline-danger"
+              onClick={handleDeleteHome}
+              title="Delete this home and all its data"
+            >
+              Delete Home
+            </button>
+          )}
         </div>
       </header>
 
@@ -376,20 +455,32 @@ function BillSplitterApp() {
               }}
             >
               <h2 style={{ fontSize: 18, fontWeight: 600 }}>Bills & Payments</h2>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => {
-                  setActionError(null)
-                  setIsCreateBillOpen(true)
-                }}
-                disabled={previewMembersCount === 0}
-                title={
-                  previewMembersCount === 0 ? 'Add members to the home first' : 'Create a bill'
-                }
-              >
-                + Add Bill
-              </button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {bills.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-outline-warning"
+                    onClick={handleResetBills}
+                    title="Reset and clear all bills for this home"
+                  >
+                    ↺ Reset Bills
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setActionError(null)
+                    setIsCreateBillOpen(true)
+                  }}
+                  disabled={previewMembersCount === 0}
+                  title={
+                    previewMembersCount === 0 ? 'Add members to the home first' : 'Create a bill'
+                  }
+                >
+                  + Add Bill
+                </button>
+              </div>
             </div>
 
             {isLoadingHomeData ? (
@@ -441,6 +532,14 @@ function BillSplitterApp() {
                           {formatMoney(bill.totalCents)}
                           <div className="bill-total-cents">({bill.totalCents}¢)</div>
                         </div>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-danger"
+                          onClick={() => handleDeleteBill(bill.id, bill.title)}
+                          title="Delete this bill"
+                        >
+                          🗑 Delete
+                        </button>
                       </div>
                     </div>
 

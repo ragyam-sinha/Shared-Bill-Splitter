@@ -408,4 +408,92 @@ app.get('/api/homes/:homeId/balances', async (c) => {
   return c.json({ balances: rows.results }, 200)
 })
 
+// DELETE /api/homes/:homeId - Delete home and all its data
+app.delete('/api/homes/:homeId', async (c) => {
+  const homeId = c.req.param('homeId')
+
+  const home = await c.env.DB.prepare('SELECT id FROM homes WHERE id = ?')
+    .bind(homeId)
+    .first<{ id: string }>()
+
+  if (!home) {
+    return c.json({ error: 'Home not found' }, 404)
+  }
+
+  const bills = await c.env.DB.prepare('SELECT id FROM bills WHERE home_id = ?')
+    .bind(homeId)
+    .all<{ id: string }>()
+
+  const billIds = bills.results.map((b) => b.id)
+  const statements = []
+
+  if (billIds.length > 0) {
+    const placeholders = billIds.map(() => '?').join(',')
+    statements.push(
+      c.env.DB.prepare(`DELETE FROM shares WHERE bill_id IN (${placeholders})`).bind(...billIds),
+    )
+    statements.push(c.env.DB.prepare('DELETE FROM bills WHERE home_id = ?').bind(homeId))
+  }
+  statements.push(c.env.DB.prepare('DELETE FROM members WHERE home_id = ?').bind(homeId))
+  statements.push(c.env.DB.prepare('DELETE FROM homes WHERE id = ?').bind(homeId))
+
+  await c.env.DB.batch(statements)
+
+  return c.json({ success: true, message: 'Home deleted successfully' }, 200)
+})
+
+// POST /api/homes/:homeId/reset - Reset/clear all bills and shares for a home
+app.post('/api/homes/:homeId/reset', async (c) => {
+  const homeId = c.req.param('homeId')
+
+  const home = await c.env.DB.prepare('SELECT id FROM homes WHERE id = ?')
+    .bind(homeId)
+    .first<{ id: string }>()
+
+  if (!home) {
+    return c.json({ error: 'Home not found' }, 404)
+  }
+
+  const bills = await c.env.DB.prepare('SELECT id FROM bills WHERE home_id = ?')
+    .bind(homeId)
+    .all<{ id: string }>()
+
+  const billIds = bills.results.map((b) => b.id)
+  const statements = []
+
+  if (billIds.length > 0) {
+    const placeholders = billIds.map(() => '?').join(',')
+    statements.push(
+      c.env.DB.prepare(`DELETE FROM shares WHERE bill_id IN (${placeholders})`).bind(...billIds),
+    )
+    statements.push(c.env.DB.prepare('DELETE FROM bills WHERE home_id = ?').bind(homeId))
+  }
+
+  if (statements.length > 0) {
+    await c.env.DB.batch(statements)
+  }
+
+  return c.json({ success: true, message: 'Home reset successfully' }, 200)
+})
+
+// DELETE /api/bills/:billId - Delete a single bill and its shares
+app.delete('/api/bills/:billId', async (c) => {
+  const billId = c.req.param('billId')
+
+  const bill = await c.env.DB.prepare('SELECT id, home_id FROM bills WHERE id = ?')
+    .bind(billId)
+    .first<{ id: string; home_id: string }>()
+
+  if (!bill) {
+    return c.json({ error: 'Bill not found' }, 404)
+  }
+
+  await c.env.DB.batch([
+    c.env.DB.prepare('DELETE FROM shares WHERE bill_id = ?').bind(billId),
+    c.env.DB.prepare('DELETE FROM bills WHERE id = ?').bind(billId),
+  ])
+
+  return c.json({ success: true, message: 'Bill deleted successfully' }, 200)
+})
+
 export default app

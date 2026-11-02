@@ -163,6 +163,37 @@ body {
   background-color: #0369a1;
 }
 
+.btn-danger {
+  background-color: var(--danger);
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #dc2626;
+}
+
+.btn-outline-danger {
+  background-color: transparent;
+  border-color: #fca5a5;
+  color: var(--danger);
+}
+
+.btn-outline-danger:hover:not(:disabled) {
+  background-color: var(--danger-light);
+  border-color: var(--danger);
+}
+
+.btn-outline-warning {
+  background-color: transparent;
+  border-color: #fcd34d;
+  color: var(--warning-text);
+}
+
+.btn-outline-warning:hover:not(:disabled) {
+  background-color: var(--warning-light);
+  border-color: var(--warning);
+}
+
 /* Alerts */
 .alert {
   padding: 12px 16px;
